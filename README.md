@@ -43,7 +43,7 @@ The system follows a modular Retrieval-Augumented Generation (RAG) architecture.
 8. The highest ranked context is provided to Gemini.
 9. Responses are generated together with source citations.
 
-
+-----
 
 ## Architecture
 
@@ -54,46 +54,48 @@ The system follows a modular Retrieval-Augumented Generation (RAG) architecture.
                   PyMuPDF Document Loader
                            │
                            ▼
-          Structure-Aware Text Extraction
+            Structure-Aware Text Extraction
                            │
                            ▼
-        Recursive Text Chunking (500-700)
+            Recursive Text Chunking (500-700)
                            │
                            ▼
-     BAAI/bge-base-en-v1.5 Embeddings
+            BAAI/bge-base-en-v1.5 Embeddings
                            │
                            ▼
-     ChromaDB + BM25 Index Creation
-──────────────────────────────────────────────────
+            ChromaDB + BM25 Index Creation
+      ──────────────────────────────────────────────────
 
-User Question (Streamlit/FastAPI)
-                │
-                ▼
-      Conversation Memory
-                │
-                ▼
-     Query Rewriting (Groq LLM)
-                │
-                ▼
-       Hybrid Retrieval
-    (Vector + BM25 Search)
-                │
-                ▼
-          Reranker
-                │
-                ▼
-      Top-K Relevant Chunks
-                │
-                ▼
-      Gemini LLM Generation
-                │
-                ▼
- Answer + Source Citations
-                │
-                ▼
-  Streamlit / FastAPI Response
-
-──────────────────────────────────────────────────
+                User 
+                 │
+                 ▼
+            Streamlit UI
+                 │
+                 ▼
+            FastAPI
+                 │
+                 ▼
+            Conversation Memory
+                 │
+                 ▼
+      Query Rewriter(Groq)
+                 │
+                 ▼
+            Hybrid Retriever
+      (BM25 + BGE Embeddings)
+                 │
+                 ▼
+            Reranker
+                 │
+                 ▼
+            Gemini LLM
+                 │
+                 ▼
+      Answer + Source Citations
+                 │
+                 ▼
+      Streamlit / FastAPI Response
+      ──────────────────────────────────────────────────
 
 Evaluation Pipeline
 
@@ -101,6 +103,10 @@ Retrieval
 • Recall@K
 • MAP
 • NDCG
+• MRR
+• Hit@K
+• Precision@K
+
 
 Generation
 • Faithfulness
