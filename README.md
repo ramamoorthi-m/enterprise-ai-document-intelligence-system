@@ -1,6 +1,6 @@
 # Enterprise AI Document Intelligence System
 
-An end-to-end Retrieval-Augumented Generation (RAG) system that enables users to interact with enterprise documents through natural language queries. The system combines Hybrid Retrieval(Semantic Search + BM25), Query Rewriting, Cross-Encoder Reranking, Conversation Memory, and Large Language Models (LLMs) to generate accurate, context-grounded answers with source citations.
+An end-to-end Retrieval-Augumented Generation (RAG) system that enables users to interact with enterprise documents through natural language queries. The system combines Hybrid Retrieval(Semantic Search + BM25), Query Rewriting, Cross-Encoder Reranking, Conversation Memory, and Gemini LLM, FastAPI, Streamlit, Retrieval & Generation Evaluation, and Dockerized deployment into a modular production-ready architecture.
 
 
 -----
@@ -70,9 +70,11 @@ The system follows a modular Retrieval-Augumented Generation (RAG) architecture.
                  │
                  ▼
             Streamlit UI
+             (Port 8501)
                  │
                  ▼
-            FastAPI
+            FastAPI Backend
+             (Port 8000)
                  │
                  ▼
             Conversation Memory
@@ -85,10 +87,10 @@ The system follows a modular Retrieval-Augumented Generation (RAG) architecture.
       (BM25 + BGE Embeddings)
                  │
                  ▼
-            Reranker
+          Cross Encoder Reranker
                  │
                  ▼
-            Gemini LLM
+            Gemini API
                  │
                  ▼
       Answer + Source Citations
@@ -128,10 +130,11 @@ Generation
 - Context-Grounded Response Generation using Google Gemini
 - Automatic Source Citation with document and page-level references
 - Retrieval Evaluation Pipeline using Hit@k, Recall@k, Precision@k, MAP, MRR, and nDCG
-- Generation Evaluation Pipeline using RAGAS metrics including Faithfulness, Answer Relevancy, Completeness, Correctness
-- LLM-as-a-judge evaluation framework for qualitative assesment of generated responses 
+- Generation Evaluation Pipeline using RAGAS metrics + LLM-as-a-Judge
 - FastAPI REST API backend
 - Interactive Streamlit Web Interface
+- Docker Containerization
+- Docker Compose Multi-Container Deployment
 - Modular pipeline architecture designed for  experimentation and future extension 
 
 
@@ -154,6 +157,7 @@ Generation
 | Environment Management | Conda |
 | Configuration | python-dotenv |
 | Evaluation | Hit@K, Recall@K, Precision@K, MRR, MAP, nDCG,RAGAS(Faithfulness, Answer Relevancy, Correctness, Completeness),LLM-as-a-judge |
+| Deployment | Docker | Docker Compose
 |Version Control | Git & GitHub |
 
 
@@ -171,13 +175,14 @@ enterprise_ai_system/
 ├── generation/          # LLM answer generation
 ├── vectorstore/         # ChromaDB vector database operations
 ├── memory/              # Conversation memory management
-├── agents/              # Query rewriting and agent modules
 ├── evaluation/          # Retrieval and generation evaluation
 ├── tests/               # Testing utilities
 ├── data/                # Input documents
 ├── chroma_db/           # Persistent vector database
-│
 ├── rag_pipeline.py      # End-to-end RAG orchestration
+├── Dockerfile           # Backend container
+├── docker-compose.yml   # Multi-container orchestration
+├── .dockerignore
 ├── requirements.txt
 ├── .env.example
 ├── README.md
@@ -205,26 +210,13 @@ enterprise_ai_system/
 ## Installation
 
 ### 1. Clone the Repository
-
 ```bash
 git clone https://github.com/ramamoorthi-m/enterprise_ai_system.git
+
 cd enterprise_ai_system
+
 ```
-
-### 2. Create and Activate Conda Environment
-
-```bash
-conda create -n enterprise-ai python=3.11
-conda activate enterprise-ai
-```
-
-### 3. Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure Environment Variables
+### 2. Configure Environment Variables
 
 Create a `.env` file in the project root.
 
@@ -233,35 +225,46 @@ GEMINI_API_KEY=your_gemini_api_key
 GROQ_API_KEY=your_groq_api_key
 ```
 
-### 5. Add Enterprise Documents
+### 3. Add Enterprise Documents
 
 Place your PDF documents inside the `data/` directory.
 
-### 6. Build the Knowledge Base
+### 4. Build the knowledge base
 
-```bash
 python rag_pipeline.py
-```
 
-### 7. Start the FastAPI Backend
+### 5. Start the Application
 
-```bash
-uvicorn api.main:app --reload
-```
+docker compose up --build
 
-### 8. Launch the Streamlit Interface
+---
 
-```bash
-streamlit run frontend/app.py
-```
+### 6. Access the Application
+
+Streamlit UI
+http://localhost:8501
+
+FastAPI
+http://localhost:8000
+
+Swagger Documentation
+http://localhost:8000/docs
+
+### 7. Stop the Application
+
+docker compose down
+
 
 The application is now ready for document question answering.
 
 
 ## Usage
 
-1. Launch the FastAPI backend.
-2. Start the Streamlit application.
+1. Start the application:
+   '''bash
+   docker compose up --build
+2. Open the Streamlit interface at:
+   http://localhost:8501
 3. Enter a natural language question.
 4. The system automatically:
 
@@ -413,15 +416,23 @@ Successful API response containing the generated answer together with the retrie
 - Retrieval Evaluation
 - Generation Evaluation
 
-### Phase 2
+### Phase 2 (Completed)
 
 - Docker containerization
+- Docker Compose
+- Multi-Container Deployment
+- Environment Variables
+- Production-ready Project Structure
+
+
+### Phase 3
+
 - Cloud deployment
 - CI/CD pipeline
 - Monitoring and logging
 - Performance optimization
 
-### Phase 3
+### Phase 4
 
 - Enterprise document support
 - OCR for scanned documents
@@ -429,7 +440,7 @@ Successful API response containing the generated answer together with the retrie
 - Advanced chunking strategies
 - Improved embedding models
 
-### Phase 4
+### Phase 5
 
 - Agentic RAG
 - Multi-agent workflows
@@ -451,6 +462,12 @@ Throughout this project, I gained hands-on experience with:
 - Vector Databases
 - Prompt Engineering
 - Modular AI system design
+- Docker
+- Docker compose
+- Container Networking
+- Containerized FastAPI
+- Containerized Streamlit
+- Deployment Architecture
 
 ## Engineering Highlights
 
@@ -462,3 +479,8 @@ Throughout this project, I gained hands-on experience with:
 - Built separate evaluation pipelines for retrieval and generation instead of relying solely on manual testing.
 - Used LLM-as-a-Judge alongside RAGAS metrics to systematically evaluate response quality.
 - Exposed the system through FastAPI and developed an interactive Streamlit interface.
+- Containerized the complete application using Docker.
+- Implemented Docker Compose Orchestration.
+- Separated frontend and backend services.
+- Configured production-ready environment variable management.
+- Designed the project to be cloud deployment ready. 

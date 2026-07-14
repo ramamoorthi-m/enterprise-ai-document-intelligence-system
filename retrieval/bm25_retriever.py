@@ -23,19 +23,32 @@ def build_bm25_index(all_chunks):
 
     global bm25, chunks
 
+    if not all_chunks or len(all_chunks)==0:
+        print("Warning: No chunks provided.BM25 index will be  None")
+        bm25=None
+        chunks=[]
+        return None
+
     chunks=all_chunks
     
     # Tokenize chunk text
     tokenized_chunks=[
         chunk["text"].lower().split()
         for chunk in all_chunks
+        if "text" in chunk and chunk["text"].strip()!=""
     ]
+
+    if len(tokenized_chunks)==0:
+        print("Warning: All chunks were empty.BM25 index will be None")
+        bm25=None
+        return None
     
     # Build BM25 index
     bm25=BM25Okapi(tokenized_chunks)
 
     print(f"BM25 Index Built Successfully!")
     print(f"Indexed {len(all_chunks)} chunks")
+    return bm25
 
 
 def bm25_search(query,top_k=5):

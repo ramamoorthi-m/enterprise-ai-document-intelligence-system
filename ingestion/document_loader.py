@@ -7,7 +7,7 @@ from pathlib import Path
 import fitz
 from ingestion.preprocessing import preprocess_text
 
-def load_documents(data_dir: str="data\pdfs"):
+def load_documents(data_dir: str="data/pdfs"):
     """
     Load all PDF documents from the specified directory.
 
@@ -28,6 +28,7 @@ def load_documents(data_dir: str="data\pdfs"):
     documents=[]
 
     pdf_files=sorted(Path(data_dir).glob("*.pdf"))
+
 
     for pdf_file in pdf_files:
 

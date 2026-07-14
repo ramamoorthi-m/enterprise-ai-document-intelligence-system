@@ -70,7 +70,9 @@ memory=ChatMemory()
 def initialize():
     print("Loading documents...")
     documents=load_documents()
+    print("Loaded documents:",len(documents))
     chunks=chunk_documents(documents)
+    print("Created chunks:",len(chunks))
     build_bm25_index(chunks)
     print("Initialization complete")
 
