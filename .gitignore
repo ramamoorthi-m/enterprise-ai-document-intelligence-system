@@ -13,9 +13,6 @@ env/
 .env
 !.env.example
 
-# ChromaDB
-chroma_db/
-
 # VS Code
 .vscode/
 .idea/
