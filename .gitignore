@@ -13,6 +13,9 @@ env/
 # ChromaDB
 chromadb/
 
+# BM25
+retrieval/bm25_index.pkl
+
 # Environment variables
 .env
 !.env.example
