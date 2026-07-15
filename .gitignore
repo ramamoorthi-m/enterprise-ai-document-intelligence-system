@@ -9,6 +9,10 @@ __pycache__/
 venv/
 env/
 
+
+# ChromaDB
+chromadb/
+
 # Environment variables
 .env
 !.env.example

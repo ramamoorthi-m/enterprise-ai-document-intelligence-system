@@ -1,92 +1,141 @@
 """
-Builds a BM25 index for keyword-based retrieval and
-returns the most relevant document chunks for a query.
+BM25 Retriever
+
+Provides keyword-based retrieval using the BM25 ranking algorithm.
+The BM25 index is built during offline ingestion and initialized once
+when the backend starts.
 """
 
 from rank_bm25 import BM25Okapi
-from ingestion.document_loader import load_documents
-from ingestion.text_chunker import chunk_documents
+import numpy as np
+import pickle
+from pathlib import Path
 
-# Global BM25 index
-bm25= None
+# Global objects
+_bm25 = None
+_chunks = None
 
-# Store document chunks used to build the index
-chunks=None
+BM25_INDEX_PATH = Path("retrieval")/"bm25_index.pkl"
+
 
 def build_bm25_index(all_chunks):
     """
-    Build a BM25 index from document chunks.
+    Build the BM25 index from document chunks.
+
     Args:
-        all_chunks(list):
-            List of chunk dictionaries.
+        all_chunks (list): List of chunk dictionaries.
+
+    Returns:
+        BM25Okapi
     """
 
-    global bm25, chunks
+    global _bm25, _chunks
 
-    if not all_chunks or len(all_chunks)==0:
-        print("Warning: No chunks provided.BM25 index will be  None")
-        bm25=None
-        chunks=[]
-        return None
+    if not all_chunks:
+        raise ValueError("No chunks provided to build BM25 index.")
 
-    chunks=all_chunks
-    
-    # Tokenize chunk text
-    tokenized_chunks=[
+    _chunks = all_chunks
+
+    tokenized_chunks = [
         chunk["text"].lower().split()
         for chunk in all_chunks
-        if "text" in chunk and chunk["text"].strip()!=""
+        if chunk.get("text", "").strip()
     ]
 
-    if len(tokenized_chunks)==0:
-        print("Warning: All chunks were empty.BM25 index will be None")
-        bm25=None
-        return None
-    
-    # Build BM25 index
-    bm25=BM25Okapi(tokenized_chunks)
+    if len(tokenized_chunks) != len(all_chunks):
+        raise ValueError("Some chunks contain empty text.")
 
-    print(f"BM25 Index Built Successfully!")
-    print(f"Indexed {len(all_chunks)} chunks")
-    return bm25
+    _bm25 = BM25Okapi(tokenized_chunks)
+
+    print(f"BM25 index built successfully.")
+    print(f"Indexed {len(_chunks)} chunks.")
+
+    return _bm25
+
+def save_bm25_index():
+    """
+    Save the BM25 index and chunks to disk.
+    """
+
+    if _bm25 is None or _chunks is None:
+        raise RuntimeError(
+            "BM25 index has not been built."
+        )
+
+    data = {
+        "bm25": _bm25,
+        "chunks": _chunks
+    }
+
+    with open(BM25_INDEX_PATH, "wb") as file:
+        pickle.dump(data, file)
+
+    print(f"BM25 index saved successfully.")
+    print(f"Location : {BM25_INDEX_PATH}")
 
 
-def bm25_search(query,top_k=5):
+def load_bm25_index():
+    """
+    Load the BM25 index and chunks from disk.
+    """
+
+    global _bm25, _chunks
+
+    if not BM25_INDEX_PATH.exists():
+        raise FileNotFoundError(
+            f"{BM25_INDEX_PATH} does not exist."
+        )
+
+    with open(BM25_INDEX_PATH, "rb") as file:
+        data = pickle.load(file)
+
+    _bm25 = data["bm25"]
+    _chunks = data["chunks"]
+
+    print("BM25 index loaded successfully.")
+
+    return _bm25
+
+
+def retrieve(query, top_k=5):
     """
     Retrieve the most relevant chunks using BM25.
+
     Args:
-        query(str):
-            User query.
+        query (str): User query.
+        top_k (int): Number of chunks to retrieve.
 
-        top_k(int):
-            Number of chunks to retrieve.
     Returns:
-        list:
-            Ranked list of (score,chunk)tuples.
+        list
     """
-    tokenized_query=query.lower().split()
 
-    scores=bm25.get_scores(tokenized_query)
+    if _bm25 is None:
+        raise RuntimeError(
+            "BM25 index has not been initialized."
+        )
 
-    ranked_results=sorted(
-        zip(scores,chunks),
-        key=lambda x: x[0],
-        reverse=True
-    )
-    
-    return ranked_results[:top_k]
-if __name__=="__main__":
-    documents=load_documents()
-    chunks=chunk_documents(documents)
-    build_bm25_index(chunks)
-    query="What is LoRA?"
-    results=bm25_search(query)
+    tokenized_query = query.lower().split()
 
-    for rank,(score,chunk) in enumerate(results,start=1):
-        print("="*80)
-        print(f"Rank: {rank}")
-        print(f"Score: {score:.4f}")
-        print(chunk["metadata"])
-        print(chunk["text"][:500])
+    scores = _bm25.get_scores(tokenized_query)
 
+    top_indices = np.argsort(scores)[::-1][:top_k]
+
+    retrieval_results = []
+
+    for idx in top_indices:
+        retrieval_results.append({
+            "score": float(scores[idx]),
+            "text": _chunks[idx]["text"],
+            "metadata": _chunks[idx]["metadata"]
+        })
+
+    return retrieval_results
+
+
+def is_initialized():
+    """
+    Check whether the BM25 index has been built.
+    """
+
+    return _bm25 is not None
 

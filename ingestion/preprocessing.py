@@ -13,10 +13,10 @@ def preprocess_text(text:str):
     text= unicodedata.normalize("NFKC", text)
 
     #Remove email addresses'
-    text=re.sub(r"\S+@\S+", " ", text)
+    text=re.sub(r"\b\S+@\S+\.\S+\b", " ", text)
 
     #Remove URLs
-    text=re.sub(r"http\S+|www\.\S+", " ", text)
+    text=re.sub(r"https?://\S+|www\.\S+", " ", text)
 
     #Replace tabs with spaces
     text=text.replace("\t", " ")
@@ -33,20 +33,4 @@ def preprocess_text(text:str):
     return text
 
 
-if __name__=="__main__":
-    sample= """
-       Hello      World!!
 
-       Contact:
-       abc@gmail.com
-
-       Website:
-       https://openai.com 
-
-       This     is     a    test:
-       """
-
-    print(preprocess_text(sample))
-
-
-        

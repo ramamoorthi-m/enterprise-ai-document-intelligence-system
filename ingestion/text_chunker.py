@@ -33,10 +33,6 @@ def chunk_documents(documents):
 
     for document in  documents:
         text=document["text"]
-        metadata={
-            "source":document["source"],
-            "page":document["page"]
-        }
         split_texts=text_splitter.split_text(text)
 
         for chunk in split_texts:

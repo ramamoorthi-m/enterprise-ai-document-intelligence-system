@@ -4,10 +4,11 @@ using Reciprocal Rank Fusion (RRF).
 """
 
 
-from retrieval.bm25_retriever import bm25_search, build_bm25_index
-from retrieval.chroma_retriever import retrieve
-from ingestion.document_loader import load_documents
-from ingestion.text_chunker import chunk_documents
+from retrieval.bm25_retriever import retrieve as bm25_retrieve
+from retrieval.bm25_retriever import load_bm25_index
+from retrieval.chroma_retriever import retrieve as chroma_retrieve
+
+load_bm25_index()
 
 def bm25_results(query,top_k=5):
     """
@@ -20,18 +21,13 @@ def bm25_results(query,top_k=5):
     Returns:
         list: Formatted BM25 results.
     """
-    results=bm25_search(query,top_k=5)
+    results=bm25_retrieve(query,top_k)
 
-    formatted=[]
 
-    for rank,(score,chunk) in enumerate(results,start=1):
-        formatted.append({
-            "id": chunk["metadata"]["chunk_id"],
-            "text":chunk["text"],
-            "metadata": chunk["metadata"],
-            "rank": rank
-        })
-    return formatted
+    for rank,result in enumerate(results,start=1):
+        result["id"]=result["metadata"]["chunk_id"]
+        result["rank"]=rank
+    return results
 
 
 def chroma_results(query,top_k=5):
@@ -45,19 +41,20 @@ def chroma_results(query,top_k=5):
     Returns:
         list: Formatted Chroma results.
     """
-    results=retrieve(query,top_k=5)
+    results=chroma_retrieve(query,top_k=5)
 
     formatted=[]
 
     docs=results["documents"][0]
     metas=results["metadatas"][0]
 
-    for rank in range(len(docs)):
+    for rank,(doc,meta) in enumerate(zip(docs,metas),start=1):
+
         formatted.append({
-            "id": metas[rank]["chunk_id"],
-            "text":docs[rank],
-            "metadata": metas[rank],
-            "rank": rank+1
+            "id": meta["chunk_id"],
+            "text":doc,
+            "metadata": meta,
+            "rank": rank
         })
     return formatted
 
@@ -77,30 +74,20 @@ def reciprocal_rank_fusion(bm25_results,chroma_results,k=60):
     fused_scores={}
     for result in bm25_results:
 
-        chunk_id=result["id"]
-        rank=result["rank"]
-
-        score=1/(k+rank)
-
-        fused_scores[chunk_id]=score
+        score=1/(k+result["rank"])
+        fused_scores[result["id"]]=fused_scores.get(result["id"],0) + score
 
     for result in chroma_results:
 
-        chunk_id=result["id"]
-        rank=result["rank"]
+        score=1/(k+result["rank"])
+        fused_scores[result["id"]]=fused_scores.get(result["id"],0) + score
 
-        score=1/(k+rank)
 
-        if chunk_id in fused_scores:
-            fused_scores[chunk_id]+=score
-        else:
-            fused_scores[chunk_id]=score
-    sorted_results=sorted(
+    return sorted(
         fused_scores.items(),
         key=lambda x: x[1],
         reverse=True
     )
-    return sorted_results
 
 def hybrid_search(query, top_k=5):
     """
@@ -119,20 +106,26 @@ def hybrid_search(query, top_k=5):
     chroma = chroma_results(query, top_k)
 
     fused = reciprocal_rank_fusion(bm25, chroma)
+   
+    bm25_dict = {x["id"]: x for x in bm25}
+    chroma_dict = {x["id"]: x for x in chroma}
+
     final_results = []
 
 
-    bm25_dict = {chunk["id"]: chunk for chunk in bm25}
-    chroma_dict = {chunk["id"]: chunk for chunk in chroma}
 
     for chunk_id, score in fused[:top_k]:
 
-        if chunk_id in chroma_dict:
-            chunk = chroma_dict[chunk_id]
-        else:
-            chunk = bm25_dict[chunk_id]
+        chunk = chroma_dict.get(chunk_id)
+        if chunk is None:
+            chunk = bm25_dict.get(chunk_id)
 
+        if chunk is None:
+            continue
+
+        chunk=chunk.copy()
         chunk["rrf_score"]= score
+
         final_results.append(chunk)
 
     return final_results
@@ -140,16 +133,13 @@ def hybrid_search(query, top_k=5):
 
 
 if __name__=="__main__":
-    docs=load_documents()
-    chunks=chunk_documents(docs)
-    build_bm25_index(chunks)
 
     query="What is LoRA?"
     results=hybrid_search(query)
-    for i,chunk in enumerate(results,start=1):
+    for i,result in enumerate(results,start=1):
         print("="*80)
         print(f"Rank:",i)
-        print("RRF Score:", chunk["rrf_score"])
+        print("RRF Score:", result["rrf_score"])
         print(result["metadata"])
         print(result["text"][:500])
 

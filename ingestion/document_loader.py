@@ -1,5 +1,6 @@
 """
-Loads PDF documents and extracts page-level text
+Loads PDF documents  from the data folder 
+and extracts page-level text
 with metadata.
 """
 
@@ -58,9 +59,6 @@ def load_documents(data_dir: str="data/pdfs"):
 
 if __name__=="__main__":
     documents=load_documents()
-    print(type(documents))
-    print(type(documents[0]))
-    print(documents[0])
     print(f"Loaded {len(documents)} pages\n")
     for document in documents[:5]:
         print("="*80)

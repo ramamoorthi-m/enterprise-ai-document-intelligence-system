@@ -10,9 +10,11 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Configure Gemini API
-genai.configure(
-    api_key=os.getenv("GOOGLE_API_KEY")
-)
+api_key=os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    raise ValueError("GOOGLE_API_KEY not found.")
+genai.configure(api_key=api_key)
+
 
 # Initialize LLM
 model=genai.GenerativeModel(
@@ -32,24 +34,16 @@ def generate_answer(prompt):
         str:
             Generated answer.
     """
+    try:
+        response=model.generate_content(
+            prompt,
+            generation_config={
+                "temperature":0.0,
+            }
+        )
 
-    response=model.generate_content(prompt)
+        return response.text
 
-    return response.text
+    except  Exception as e:
+        raise RuntimeError(f"Gemini Generation failed:{e}")
 
-if __name__=="__main__":
-        prompt="""
-        Context:
-        LoRA is a parameter efficient fine tuning technique.
-
-        Question:
-        What is LoRA?
-
-        Answer:
-        """
-
-
-
-        answer=generate_answer(prompt)
-
-        print(answer)

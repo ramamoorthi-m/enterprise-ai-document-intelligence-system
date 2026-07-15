@@ -26,6 +26,8 @@ def rerank(query,retrieved_chunks,top_k=5):
         list:
             Re-ranked chunks sorted by semantic relevance.
     """
+    if not retrieved_chunks:
+        return []
 
     # Create(query,chunk) pairs
     pairs=[
@@ -35,15 +37,18 @@ def rerank(query,retrieved_chunks,top_k=5):
     ]
 
     # Predict relevance scores
-    scores=reranker.predict(pairs)
+    scores=reranker.predict(pairs, batch_size=16, show_progress_bar=False)
 
     # Attach rerank score
+    reranked=[]
     for chunk,score in zip(retrieved_chunks,scores):
-        chunk["rerank_score"]=float(score)
+        item=chunk.copy()
+        item["rerank_score"]=float(score)
+        reranked.append(item)
 
     # Sort by reranker score
     reranked=sorted(
-        retrieved_chunks,
+        reranked,
         key=lambda x: x["rerank_score"],
         reverse=True
     )

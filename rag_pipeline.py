@@ -1,7 +1,6 @@
-from ingestion.document_loader import load_documents
-from ingestion.text_chunker import chunk_documents
+from retrieval.bm25_retriever import load_bm25_index
+from retrieval.chroma_retriever import get_collection
 
-from retrieval.bm25_retriever import build_bm25_index
 from retrieval.hybrid_retriever import hybrid_search
 from retrieval.reranker import rerank
 
@@ -68,13 +67,17 @@ def should_rewrite_query(query: str, history):
 memory=ChatMemory()
 
 def initialize():
-    print("Loading documents...")
-    documents=load_documents()
-    print("Loaded documents:",len(documents))
-    chunks=chunk_documents(documents)
-    print("Created chunks:",len(chunks))
-    build_bm25_index(chunks)
-    print("Initialization complete")
+    print("=" * 60)
+    print("Initializing Retrieval System...")
+    print("=" * 60)
+
+    print("Loading ChromaDB...")
+    get_collection()
+
+    print("Loading BM25 index...")
+    load_bm25_index()
+
+    print("Initialization complete.")
 
 def ask(query,return_contexts=False):
 

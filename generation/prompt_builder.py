@@ -26,22 +26,27 @@ def build_prompt(query, retrieved_chunks,history=""):
 
     context= ""
 
-    # Combine retrieved chunks into a single context
-    for chunk in retrieved_chunks:
-        context +=chunk["text"]+ "\n\n"
+    for i,chunk in enumerate(retrieved_chunks,start=1):
+        meta=chunk.get("metadata",{})
+
+        context +=(
+            f"[Document {i}]\n"
+            f"Source : {meta.get('source','Unknown')}\n"
+            f"Page  : {meta.get('page','-')}\n\n"
+            f"{chunk['text']}\n\n"
+        )
 
     prompt=f""" 
-You are an AI assistant for enterprise document intelligence that answers questions
-using only the provided context.
+You are an Enterprise AI assistant.
 
-
-If the answer cannot be found in the context,
-reply:
-
-"I could not find the answer in the provided documents."
-
-Do not make up information.
-Do not use outside knowledge
+Instructions:
+-Answer ONLY from the provided context.
+-If the answer is not present,say:
+ "I could not find the answer in the provided documents."
+-Do not use outside knowledge.
+-Do not hallucinate.
+-Always cite the source document and page number whenever possible.
+-keep the answer concise and accurate. 
 
 Previous Conversation:
 {history}
@@ -65,30 +70,3 @@ Answer:
 
 
 
-if __name__=="__main__":
-    dummy_results={
-        "documents":[[
-            "Self attention allows a model to focus on relevant words.",
-            "Transformer uses multi-head attention."
-        ]],
-        "metadatas":[[
-            {
-                "source":
-                "attention_is_all_you_need.pdf",
-                "page": 4
-            },
-            {
-                "source":
-                "attention_is_all_you_need.pdf",
-                "page": 5
-            }
-
-
-        ]]
-        
-    }
-    prompt=build_prompt(
-        "What is self attention?",
-        dummy_results
-    )
-    print(prompt)
