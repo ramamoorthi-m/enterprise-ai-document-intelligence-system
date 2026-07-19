@@ -1,20 +1,36 @@
+import time
+
 from retrieval.bm25_retriever import load_bm25_index
 from retrieval.chroma_retriever import get_collection
-
 from retrieval.hybrid_retriever import hybrid_search
 from retrieval.reranker import rerank
 
 from generation.query_rewriter import rewrite_query
-from generation.llm_generator import generate_answer
 from generation.prompt_builder import build_prompt
+from generation.llm_generator import generate_answer
 from generation.source_citation import extract_sources
 
 from memory.chat_memory import ChatMemory
 
 
-def should_rewrite_query(query: str, history):
+###############################################################################
+# Configuration
+###############################################################################
+
+INITIAL_RETRIEVAL_K = 20
+FINAL_RERANK_K = 5
+
+memory = ChatMemory()
+
+
+###############################################################################
+# Query Rewrite Decision
+###############################################################################
+
+def should_rewrite_query(query: str, history: str) -> bool:
     """
-    Rewrite only follow-up questions.
+    Decide whether the query should be rewritten.
+    Only rewrite follow-up questions.
     """
 
     if not history.strip():
@@ -57,103 +73,159 @@ def should_rewrite_query(query: str, history):
 
     words = set(query.split())
 
-    return (
-        len(words & pronouns) > 0 or
-        len(words & comparison_words) > 0 or
-        len(words & followup_words) > 0
+    return bool(
+        words & pronouns or
+        words & comparison_words or
+        words & followup_words
     )
 
-# Global conversation memory
-memory=ChatMemory()
+
+###############################################################################
+# Initialization
+###############################################################################
 
 def initialize():
-    print("=" * 60)
-    print("Initializing Retrieval System...")
-    print("=" * 60)
 
-    print("Loading ChromaDB...")
+    print("=" * 70)
+    print("Initializing Enterprise Retrieval System...")
+    print("=" * 70)
+
     get_collection()
+    print(" ChromaDB Loaded")
 
-    print("Loading BM25 index...")
     load_bm25_index()
+    print(" BM25 Loaded")
 
-    print("Initialization complete.")
+    print(" System Ready")
+    print("=" * 70)
 
-def ask(query,return_contexts=False):
 
-    history=memory.get_history()
-    rewritten_query=query
+###############################################################################
+# Main Pipeline
+###############################################################################
+
+def ask(query: str, return_contexts=False):
+
+    start = time.time()
+
+    history = memory.get_history()
+
+    rewritten_query = query
+
+    ##############################################################
+    # Query Rewrite
+    ##############################################################
 
     try:
-        if should_rewrite_query(query,history):
+
+        if should_rewrite_query(query, history):
 
             print("\nQuery Rewriter : ON")
 
-            rewritten_query=rewrite_query(query,history)
+            rewritten_query = rewrite_query(query, history)
 
-            if rewritten_query.lower() in [
+            if rewritten_query.lower() in {
                 "answer",
                 "summary",
-                "explanation"
-                ]:
-                  rewritten_query=query
+                "explanation",
+                ""
+            }:
+                rewritten_query = query
 
         else:
-             print("\nQuery Rewriter : OFF")
+            print("\nQuery Rewriter : OFF")
 
     except Exception as e:
-        print(f"Query rewrite failed: {e}")
-        rewritten_query
+
+        print("Query Rewrite Error:", e)
+        rewritten_query = query
 
     print("=" * 80)
-    print(f"Original Query : {query}")
-    print(f"Final Query : {rewritten_query}")
+    print("Original Query :", query)
+    print("Final Query    :", rewritten_query)
     print("=" * 80)
 
+    ##############################################################
+    # Hybrid Retrieval
+    ##############################################################
 
-    # Retrieve candidate chunks
-    retrieved_chunks=hybrid_search(rewritten_query,top_k=20)
+    retrieved_chunks = hybrid_search(
+        rewritten_query,
+        top_k=INITIAL_RETRIEVAL_K
+    )
 
-    # Rerank retrieved chunks
-    retrieved_chunks=rerank(rewritten_query,retrieved_chunks,top_k=5)
+    if not retrieved_chunks:
 
-    # Build LLM prompt
-    prompt=build_prompt(rewritten_query,retrieved_chunks,history)
+        return (
+            "No relevant documents found.",
+            [],
+            []
+        )
 
-    # Generate Answer
+    ##############################################################
+    # Reranking
+    ##############################################################
+
+    retrieved_chunks = rerank(
+        rewritten_query,
+        retrieved_chunks,
+        top_k=FINAL_RERANK_K
+    )
+
+    ##############################################################
+    # Prompt Building
+    ##############################################################
+
+    prompt = build_prompt(
+        rewritten_query,
+        retrieved_chunks,
+        history
+    )
+
+    ##############################################################
+    # LLM Generation
+    ##############################################################
+
     try:
-        answer=generate_answer(prompt)
-    except Exception as e:
-        print("LLM Error:",e)
-        answer="LLM is currently unavailable"
-    # Save conversation
-    memory.add(query,answer)
 
-    # Extract document citations
-    contexts=[chunk["text"] for chunk in retrieved_chunks]
-    sources=extract_sources(retrieved_chunks)
+        answer = generate_answer(prompt)
+
+    except Exception as e:
+        print("=" * 80)
+        print("LLM ERROR")
+        print(type(e))
+        print(str(e))
+        print("="* 80)
+
+        return f"LLM Error: {str(e)}", [], []
+
+    ##############################################################
+    # Save Conversation
+    ##############################################################
+
+    memory.add(query, answer)
+
+    ##############################################################
+    # Sources
+    ##############################################################
+
+    contexts = [
+        chunk["text"]
+        for chunk in retrieved_chunks
+    ]
+
+    sources = extract_sources(retrieved_chunks)
+
+    ##############################################################
+    # Metrics
+    ##############################################################
+
+    elapsed = round(time.time() - start, 2)
+
+    print(f"\nPipeline Time : {elapsed} sec")
+    print("=" * 80)
 
     if return_contexts:
-        return answer,contexts,sources
+        return answer, contexts, sources
 
-
-    return answer,contexts,sources
-
-if __name__=="__main__":
-    initialize()
-    while True:
-       query=input("\nAsk Question (type 'exit to quit):")
-       if query.lower()=="exit":
-        break
-       answer,contexts,sources=ask(query)
-       print("\n" + "=" * 80)
-       print("\nAnswer:\n")
-       print(answer)
-
-       print("\nSources:")
-       for source in sources:
-        print(f"- {source}")
-       print("=" * 80)
-
-
-              
+    return answer, contexts, sources

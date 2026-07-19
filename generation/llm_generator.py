@@ -11,6 +11,7 @@ load_dotenv()
 
 # Configure Gemini API
 api_key=os.getenv("GOOGLE_API_KEY")
+print("API KEY FOUND:", bool(api_key))
 if not api_key:
     raise ValueError("GOOGLE_API_KEY not found.")
 genai.configure(api_key=api_key)
