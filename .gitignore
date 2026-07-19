@@ -11,7 +11,7 @@ env/
 
 
 # ChromaDB
-chromadb/
+chroma_db/
 
 # BM25
 retrieval/bm25_index.pkl
